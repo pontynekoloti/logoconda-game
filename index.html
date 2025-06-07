@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>LOGOCONDA GAME</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="icon" type="image/png" href="snake_logo.png"/>
+  <style>
+    @font-face {
+      font-family: 'PressStart2P';
+      src: url('https://fonts.gstatic.com/s/pressstart2p/v14/e3t4euO8KNlupt8nKjc5W0ZWF0w.woff2') format('woff2');
+    }
+    body {
+      margin:0; padding:0; background: #111; color:#fff;
+      font-family: 'PressStart2P', monospace;
+      overflow:hidden;
+      user-select: none;
+    }
+    .top-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      height:44px; padding:0 24px;
+      font-size:16px;
+      background: #111;
+      border-bottom: 2px solid #fff2;
+    }
+    .game-title {
+      font-size:18px; letter-spacing:2px;
+      filter:drop-shadow(0 0 2px #fff);
+    }
+    .score, .best { font-size:15px; }
+    .field-wrap {
+      display: flex; flex-direction:column; align-items:center; justify-content:center;
+      height:calc(100vh - 44px);
+      width:100vw;
+    }
+    .field {
+      display: grid;
+      background: #222;
+      border: 6px solid #fff;
+      box-shadow:0 0 20px #fff6;
+      width:min(96vw, 560px);
+      height:min(78vw, 420px);
+      margin:18px 0 0 0;
+      touch-action: none;
+    }
+    .cell {
+      width:100%; height:100%; box-sizing:border-box;
+      background: #111;
+      border: 1px solid #222;
+      display: flex; align-items:center; justify-content:center;
+      position:relative;
+    }
+    .snake { background:#fff; }
+    .head { background:#aaa; box-shadow: 0 0 7px #fff; }
+    .shield { border:2px solid #0ff; }
+    .food img, .superfood img { width:80%; filter: contrast(1.3); }
+    .superfood img { animation: pop 0.6s infinite alternate; }
+    @keyframes pop { 0% {transform:scale(1)} 100%{transform:scale(1.18)} }
+    .pause-btn {
+      font-size:16px; background: #fff; color:#000; border:2px solid #111;
+      border-radius:7px; padding:2px 15px; margin-left:20px; cursor:pointer;
+      font-family:inherit;
+    }
+    .effect-label {
+      font-size:14px; font-weight:bold; color:#0ff; margin-left:18px; letter-spacing:2px;
+    }
+    .effect-timer {
+      margin-left:8px; color:#fff; background:#000b; border-radius:3px; padding:1px 5px;
+    }
+    .gameover, .pause-overlay, .start-screen {
+      position:fixed; left:0; top:0; width:100vw; height:100vh;
+      background:rgba(0,0,0,0.92); z-index:20;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+    }
+    .start-logo {
+      margin-bottom:2rem;
+      filter:drop-shadow(0 0 10px #fff);
+      animation: flicker 1.4s infinite alternate;
+    }
+    @keyframes flicker {
+      0% { opacity:.8; }
+      100% { opacity:1; }
+    }
+    .start-title {
+      font-size:26px; margin-bottom:14px; letter-spacing:2px; color:#fff; filter:drop-shadow(0 0 8px #fff);
+    }
+    .best-score {
+      font-size:18px; margin:7px 0;
+    }
+    .start-btn {
+      font-size:17px; padding:14px 38px; margin:18px 0 12px;
+      background: #fff; color:#111; border:2px solid #111;
+      border-radius:10px; font-family:inherit; cursor:pointer;
+      box-shadow:0 0 12px #fff8;
+    }
+    .menu-instruction {
+      font-size:14px; margin-top:10px; color:#fff7;
+    }
+    .gameover-box {
+      background:#222c; border:2px solid #fff; border-radius:14px;
+      padding:28px 30px 16px 30px; display:flex; flex-direction:column; align-items:center;
+      box-shadow:0 0 28px #fff8;
+    }
+    .gameover-title { font-size:32px; letter-spacing:2px; margin-bottom:12px; }
+    .gameover-score { font-size:20px; margin-bottom:12px;}
+    .gameover-btn {
+      font-size:18px; padding:10px 30px; margin-top:10px;
+      background: #fff; color:#111; border:2px solid #111;
+      border-radius:8px; font-family:inherit; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <span class="game-title">LOGOCONDA GAME</span>
+    <span>
+      <span class="score">СЧЁТ: <span id="score">0</span></span>
+      <span class="best" style="margin-left:18px;">ЛУЧШИЙ: <span id="best">0</span></span>
+      <button class="pause-btn" onclick="togglePause()">II</button>
+      <span class="effect-label" id="effect-label"></span>
+    </span>
+  </div>
+  <div class="field-wrap">
+    <div id="field" class="field"></div>
+  </div>
+  <div id="gameover" class="gameover" style="display:none">
+    <div class="gameover-box">
+      <div class="gameover-title">GAME OVER</div>
+      <div class="gameover-score" id="final-score"></div>
+      <div class="gameover-score" id="final-best"></div>
+      <button class="gameover-btn" onclick="startGame()">Заново</button>
+    </div>
+  </div>
+  <div id="pause" class="pause-overlay" style="display:none">
+    <div style="font-size:38px; margin-bottom:24px;">ПАУЗА</div>
+    <button class="start-btn" onclick="togglePause()">Продолжить</button>
+  </div>
+  <div id="start" class="start-screen">
+    <img src="snake_logo.png" width="110" height="110" class="start-logo"/>
+    <div class="start-title">LOGOCONDA GAME</div>
+    <div class="best-score">ЛУЧШИЙ СЧЁТ: <span id="start-best"></span></div>
+    <button class="start-btn" onclick="startGame()">НАЧАТЬ</button>
+    <div class="menu-instruction">Управление: стрелки (ПК), свайпы (моб)</div>
+  </div>
+  <script>
+    // --- КОНСТАНТЫ И АССЕТЫ ---
+    const FIELD_W = 20, FIELD_H = 15;
+    const INIT_SNAKE = [{x:8, y:7},{x:7, y:7},{x:6, y:7}];
+    const LOGOS = [
+      "nike.png","gucci.png","prada.png","balenciaga.png",
+      "apple.png","puma.png","reebok.png"
+    ];
+    const SUPER_LOGOS = ["lv.png", "chanel.png", "supreme.png"];
+    let snake, dir, nextDir, food, foodLogo, superFood, superLogo, effect, effectTicks, paused, gameOver, score, bestScore, moveTimer;
+    let fieldDiv = document.getElementById('field');
+    let gameoverDiv = document.getElementById('gameover');
+    let pauseDiv = document.getElementById('pause');
+    let startDiv = document.getElementById('start');
+    let scoreSpan = document.getElementById('score');
+    let bestSpan = document.getElementById('best');
+    let startBestSpan = document.getElementById('start-best');
+    let effectLabel = document.getElementById('effect-label');
+
+    // --- ЛОГИКА ---
+    function randomCell(snakeArr) {
+      let pos;
+      do {
+        pos = {x:Math.floor(Math.random()*FIELD_W),y:Math.floor(Math.random()*FIELD_H)};
+      } while (snakeArr.some(s=>s.x===pos.x&&s.y===pos.y));
+      return pos;
+    }
+    function randomLogo(isSuper) {
+      const arr = isSuper?SUPER_LOGOS:LOGOS;
+      return arr[Math.floor(Math.random()*arr.length)];
+    }
+    function randomEffect() {
+      const effs = ["shield","slow","double","invert"];
+      return effs[Math.floor(Math.random()*effs.length)];
+    }
+    function updateUI() {
+      scoreSpan.textContent = score;
+      bestSpan.textContent = bestScore;
+      startBestSpan.textContent = bestScore;
+    }
+    function renderField() {
+      fieldDiv.innerHTML = '';
+      fieldDiv.style.gridTemplateRows = `repeat(${FIELD_H},1fr)`;
+      fieldDiv.style.gridTemplateColumns = `repeat(${FIELD_W},1fr)`;
+      for (let y=0; y<FIELD_H; y++) for (let x=0; x<FIELD_W; x++) {
+        let cell = document.createElement('div');
+        cell.className = 'cell';
+        let idx = snake.findIndex(s=>s.x===x&&s.y===y);
+        if (idx>=0) cell.className += ' snake' + (idx==0?' head':'') + (effect=='shield'&&idx==0?' shield':'');
+        if (food.x===x&&food.y===y) {
+          cell.className += ' food';
+          let img = document.createElement('img');
+          img.src = 'logos/'+foodLogo; img.alt='logo'; cell.appendChild(img);
+        }
+        if (superFood && superFood.x===x&&superFood.y===y) {
+          cell.className += ' superfood';
+          let img = document.createElement('img');
+          img.src = 'logos/'+superLogo; img.alt='super'; cell.appendChild(img);
+        }
+        fieldDiv.appendChild(cell);
+      }
+    }
+    function moveSnake() {
+      if (paused || gameOver) return;
+      let curDir = effect=="invert" ? {x:-nextDir.x, y:-nextDir.y} : nextDir;
+      dir = curDir;
+      let head = {x:(snake[0].x+curDir.x+FIELD_W)%FIELD_W, y:(snake[0].y+curDir.y+FIELD_H)%FIELD_H};
+      let collision = snake.some(s=>s.x==head.x&&s.y==head.y);
+      if (collision && effect!="shield") {
+        gameOver = true;
+        clearInterval(moveTimer);
+        setTimeout(showGameOver,900);
+        return;
+      }
+      snake = [head, ...snake];
+      let ate=false, ateSuper=false;
+      if (head.x==food.x&&head.y==food.y) {
+        score++;
+        food = randomCell(snake);
+        foodLogo = randomLogo(false);
+        if (score%10==0) {
+          superFood = randomCell(snake);
+          superLogo = randomLogo(true);
+        }
+      } else if (superFood && head.x==superFood.x&&head.y==superFood.y) {
+        superFood = null;
+        effect = randomEffect();
+        effectTicks = 6;
+      } else snake.pop();
+      renderField();
+      updateUI();
+      if (effect && effectTicks>0) {
+        effectLabel.innerHTML = {
+          shield:"ЩИТ",slow:"МЕДЛЕННО",double:"X2",invert:"ИНВЕРСИЯ"
+        }[effect] + `<span class="effect-timer">${effectTicks}s</span>`;
+      } else { effectLabel.innerHTML=""; }
+    }
+    function startGame() {
+      snake = INIT_SNAKE.map(s=>({...s}));
+      dir = {x:1,y:0}; nextDir = {x:1,y:0};
+      food = randomCell(snake);
+      foodLogo = randomLogo(false);
+      superFood = null; superLogo = null;
+      effect = null; effectTicks = 0;
+      paused = false; gameOver = false;
+      score = 0;
+      bestScore = Number(localStorage.getItem("logoconda_best")||0);
+      updateUI();
+      renderField();
+      gameoverDiv.style.display = "none";
+      pauseDiv.style.display = "none";
+      startDiv.style.display = "none";
+      moveTimer && clearInterval(moveTimer);
+      moveTimer = setInterval(()=>{
+        if (paused || gameOver) return;
+        if (effect && effectTicks>0) {
+          effectTicks--;
+          if (effectTicks<=0) effect=null;
+        }
+        moveSnake();
+      }, effect=="slow"?180:110);
+    }
+    function showGameOver() {
+      document.getElementById('final-score').textContent = "СЧЁТ: "+score;
+      if (score>bestScore) {
+        bestScore = score;
+        localStorage.setItem("logoconda_best", score);
+      }
+      document.getElementById('final-best').textContent = "ЛУЧШИЙ: "+bestScore;
+      gameoverDiv.style.display = "flex";
+      updateUI();
+    }
+    function togglePause() {
+      if (gameOver || startDiv.style.display!="none") return;
+      paused = !paused;
+      pauseDiv.style.display = paused?"flex":"none";
+    }
+    // --- УПРАВЛЕНИЕ ---
+    document.addEventListener('keydown',e=>{
+      if (gameOver) return;
+      if (["ArrowUp","w"].includes(e.key) && dir.y==0) nextDir={x:0,y:-1};
+      if (["ArrowDown","s"].includes(e.key) && dir.y==0) nextDir={x:0,y:1};
+      if (["ArrowLeft","a"].includes(e.key) && dir.x==0) nextDir={x:-1,y:0};
+      if (["ArrowRight","d"].includes(e.key) && dir.x==0) nextDir={x:1,y:0};
+      if (e.key=="Escape") togglePause();
+    });
+    // Свайпы (моб)
+    let sx=0,sy=0;
+    window.addEventListener("touchstart",e=>{
+      let t = e.touches[0]; sx = t.clientX; sy = t.clientY;
+    });
+    window.addEventListener("touchend",e=>{
+      let t = e.changedTouches[0], dx = t.clientX-sx, dy=t.clientY-sy;
+      if (Math.abs(dx)>Math.abs(dy)) {
+        if (dx>30 && dir.x==0) nextDir={x:1,y:0};
+        if (dx<-30 && dir.x==0) nextDir={x:-1,y:0};
+      } else {
+        if (dy>30 && dir.y==0) nextDir={x:0,y:1};
+        if (dy<-30 && dir.y==0) nextDir={x:0,y:-1};
+      }
+    });
+    // --- СТАРТ ---
+    bestScore = Number(localStorage.getItem("logoconda_best")||0);
+    updateUI();
+  </script>
+</body>
+</html>
